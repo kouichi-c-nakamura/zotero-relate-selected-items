@@ -7,10 +7,9 @@ class Addon {
   public data: {
     alive: boolean;
     config: typeof config;
-    // Env type, see build.js
     env: "development" | "production";
     initialized?: boolean;
-    ztoolkit: ZToolkit;
+    ztoolkit: ReturnType<typeof createZToolkit>;
     locale?: {
       current: any;
     };
@@ -21,9 +20,7 @@ class Addon {
     };
     dialog?: DialogHelper;
   };
-  // Lifecycle hooks
   public hooks: typeof hooks;
-  // APIs
   public api: object;
 
   constructor() {
@@ -36,6 +33,46 @@ class Addon {
     };
     this.hooks = hooks;
     this.api = {};
+  }
+
+  public async relateSelectedItems(): Promise<void> {
+    const pane = Zotero.getActiveZoteroPane();
+    if (!pane) return;
+
+    // レギュラーアイテムのみ抽出
+    const items = (pane.getSelectedItems() as Zotero.Item[]).filter(
+      (item) => item.isRegularItem && item.isRegularItem()
+    );
+
+    if (items.length < 2) {
+      const win = Zotero.getMainWindow();
+      if (win) {
+        Zotero.alert(
+          win,
+          "Relate Selected Items",
+          "Please select at least 2 regular items to link."
+        );
+      }
+      return;
+    }
+
+    await Zotero.DB.executeTransaction(async () => {
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          // 型定義に合わせて Item オブジェクトを渡す
+          items[i].addRelatedItem(items[j]);
+        }
+        await items[i].saveTx();
+      }
+    });
+
+    const progressWin = new Zotero.ProgressWindow({ closeOnClick: true });
+    progressWin.changeHeadline("Relate Selected Items");
+    progressWin.addDescription(
+      `Successfully linked ${items.length} items to each other.`
+    );
+    progressWin.show();
+    progressWin.startCloseTimer(3000);
   }
 }
 

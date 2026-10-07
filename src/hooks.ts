@@ -43,54 +43,32 @@ async function onStartup() {
   addon.data.initialized = true;
 }
 
-async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
-  // Create ztoolkit for every window
-  addon.data.ztoolkit = createZToolkit();
+export function onMainWindowLoad(win: Window): void {
+  const doc = win.document as any;
+  const itemMenu = doc.getElementById("zotero-itemmenu");
 
-  win.MozXULElement.insertFTLIfNeeded(
-    `${addon.data.config.addonRef}-mainWindow.ftl`,
-  );
+  if (!itemMenu) return;
 
-  const popupWin = new ztoolkit.ProgressWindow(addon.data.config.addonName, {
-    closeOnClick: true,
-    closeTime: -1,
-  })
-    .createLine({
-      text: getString("startup-begin"),
-      type: "default",
-      progress: 0,
-    })
-    .show();
+  const menuId = "menuitem-relate-selected";
 
-  await Zotero.Promise.delay(1000);
-  popupWin.changeLine({
-    progress: 30,
-    text: `[30%] ${getString("startup-begin")}`,
+  // Listen to popupshowing to ensure menu item visibility on selection
+  itemMenu.addEventListener("popupshowing", () => {
+    let menuitem = doc.getElementById(menuId);
+    if (!menuitem) {
+      menuitem = doc.createXULElement ? doc.createXULElement("menuitem") : doc.createElement("menuitem");
+      menuitem.id = menuId;
+      menuitem.setAttribute("label", "Relate Selected Items to Each Other");
+      menuitem.addEventListener("command", () => {
+        addon.relateSelectedItems();
+      });
+      itemMenu.appendChild(menuitem);
+    }
+
+    // Only show when 2 or more regular items are selected
+    const pane = Zotero.getActiveZoteroPane();
+    const count = pane ? pane.getSelectedItems().filter((i: any) => i.isRegularItem && i.isRegularItem()).length : 0;
+    menuitem.hidden = count < 2;
   });
-
-  UIExampleFactory.registerStyleSheet(win);
-
-  UIExampleFactory.registerRightClickMenuItem();
-
-  UIExampleFactory.registerRightClickMenuPopup(win);
-
-  UIExampleFactory.registerWindowMenuWithSeparator();
-
-  PromptExampleFactory.registerNormalCommandExample();
-
-  PromptExampleFactory.registerAnonymousCommandExample(win);
-
-  PromptExampleFactory.registerConditionalCommandExample();
-
-  await Zotero.Promise.delay(1000);
-
-  popupWin.changeLine({
-    progress: 100,
-    text: `[100%] ${getString("startup-finish")}`,
-  });
-  popupWin.startCloseTimer(5000);
-
-  addon.hooks.onDialogEvents("dialogExample");
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
