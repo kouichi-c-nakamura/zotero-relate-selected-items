@@ -1,3 +1,8 @@
+# Zotero has officially supported these features.
+
+- Right-click command "Relate Items" was implemented in version 8.
+- The "Unrelate" feature will be covered in an upcoming version.
+
 # Zotero: Relate Selected Items
 
 [![GitHub release](https://img.shields.io/github/v/release/<ユーザー名>/zotero-relate-selected-items?color=blue)](https://github.com/<ユーザー名>/zotero-relate-selected-items/releases)
